@@ -11,6 +11,8 @@ TOTAL_SERIES_FILES = Gauge('sonarr_total_series_files', 'Total episodes download
 TOTAL_EPISODES = Gauge('sonarr_total_episodes', 'Total number of episodes in sonarr')
 TOTAL_MISSING_EPISODES = Gauge('sonarr_missing_episodes', 'Total missing episodes in sonarr')
 
+QUEUE_SIZE = Gauge('sonarr_queue_size', 'Total items in Sonarr Queue')
+
 def sonarr_client(path):
     api_call = urllib3.PoolManager()
     headers = {
@@ -22,32 +24,28 @@ def sonarr_client(path):
     except urllib3.exceptions.HTTPError:
         print(f"Cannot complete request")
 
-def total_series():
+def series_gauges():
     data = sonarr_client("/api/series")
-    TOTAL_SERIES.set(len(data))
 
-def total_series_files():
-    data = sonarr_client("/api/series")
-    TOTAL_SERIES_FILES.set(sum(s['episodeFileCount'] for s in data))
-
-def total_episodes():
-    data = sonarr_client("/api/series")
-    TOTAL_EPISODES.set(sum(s['episodeCount'] for s in data))
-
-def total_missing_episodes():
-    data = sonarr_client("/api/series")
     total_episodes = sum(s['episodeCount'] for s in data)
     total_files = sum(s['episodeFileCount'] for s in data)
+
+    TOTAL_SERIES.set(len(data))
+    TOTAL_SERIES_FILES.set(total_files)
+    TOTAL_EPISODES.set(total_episodes)
     TOTAL_MISSING_EPISODES.set(total_episodes - total_files)
+
+def queue_gauges():
+    data = sonarr_client("/api/queue")
+
+    QUEUE_SIZE.set(len(data))
+
+
 
 if __name__ == '__main__':
     start_http_server(9315, addr='0.0.0.0')
     while True:
-        total_series()
-        total_series_files()
-        total_episodes()
-        total_missing_episodes()
-
-
+        series_gauges()
+        queue_gauges()
 
 
